@@ -92,12 +92,12 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; 
 .hud-sub { font-weight: 500; font-size: 14px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 2px; }
 .streak-bar { font-family: 'Anton', sans-serif; font-size: 20px; color: #FF6600; letter-spacing: 2px; margin-top: 2px; }
 
-.tile-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(8, 1fr); gap: 8px; width: calc(100% - 80px); max-width: 1760px; height: calc(100% - 160px); margin: 10px 40px 50px; }
-.tile { border-radius: 8px; cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.1s; border: 2px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.04); position: relative; }
+.tile-grid { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; width: auto; max-width: 1760px; margin: 8px auto 44px; padding: 12px; background: rgba(30,30,30,0.6); border-radius: 12px; aspect-ratio: 9 / 8; height: calc(100% - 150px); }
+.tile { aspect-ratio: 1 / 1; border-radius: 4px; cursor: pointer; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.1s; border: 4px solid rgba(60,60,60,0.9); background: rgba(40,40,40,0.7); position: relative; box-shadow: inset 0 0 10px rgba(0,0,0,0.4); }
 .tile.lit { animation: tileGlow 1.2s ease-in-out infinite; }
-.tile.lit-yellow { background: rgba(255,204,0,0.85); border-color: #FFCC00; --glow-color: rgba(255,204,0,0.6); }
-.tile.lit-red { background: rgba(212,5,17,0.8); border-color: #D40511; --glow-color: rgba(212,5,17,0.6); }
-.tile.lit-white { background: rgba(255,255,255,0.75); border-color: rgba(255,255,255,0.8); --glow-color: rgba(255,255,255,0.4); }
+.tile.lit-yellow { background: #FFCC00; border-color: #8a7000; --glow-color: rgba(255,204,0,0.7); box-shadow: inset 0 0 20px rgba(255,255,200,0.4), 0 0 25px rgba(255,204,0,0.5); }
+.tile.lit-red { background: #E8164D; border-color: #6a0a22; --glow-color: rgba(232,22,77,0.7); box-shadow: inset 0 0 20px rgba(255,150,150,0.3), 0 0 25px rgba(232,22,77,0.5); }
+.tile.lit-white { background: rgba(240,240,255,0.9); border-color: #666; --glow-color: rgba(220,220,255,0.5); box-shadow: inset 0 0 20px rgba(255,255,255,0.5), 0 0 25px rgba(220,220,255,0.4); }
 .tile.hit { animation: tileHit 0.3s ease-out; }
 .tile.missed { animation: tileMiss 0.5s ease-out forwards; }
 .tile:active { transform: scale(0.95); }
@@ -279,7 +279,10 @@ const STREAK_BONUSES = [
   { min: 5, multiplier: 1.5 },
   { min: 3, multiplier: 1.2 }
 ];
-const TILE_LIFETIME = 2000; // ms before tile expires
+const TILE_LIFETIME = 2500; // ms before tile expires
+const MIN_LIT = 4; // minimum tiles lit at once
+const MAX_LIT_START = 6; // max lit at start
+const MAX_LIT_END = 10; // max lit in final phase
 const WRONG_TILE_PENALTY = -50;
 
 let litTiles = new Map(); // index → { color, litAt, timeout }
@@ -384,23 +387,25 @@ function startGame() {
   scheduleTileSpawn();
 }
 
-// ── Tile spawning — accelerates over time ──
+// ── Tile spawning — multiple tiles lit at once, like the real floor ──
 function scheduleTileSpawn() {
   if (!gameRunning) return;
 
-  spawnTile();
-
-  // Spawn rate: starts at 1 tile every 1.8s, speeds up to every 0.6s
   const elapsed = GAME_DURATION - timeLeft;
   const progress = elapsed / GAME_DURATION;
-  const interval = 1800 - (progress * 1200); // 1800ms → 600ms
-  // Spawn extra tiles in final 15 seconds
-  const maxLit = timeLeft <= 15 ? 3 : (timeLeft <= 30 ? 2 : 1);
-  if (litTiles.size < maxLit) {
-    setTimeout(() => spawnTile(), interval * 0.4);
+
+  // Target how many tiles should be lit right now
+  const targetLit = Math.round(MAX_LIT_START + progress * (MAX_LIT_END - MAX_LIT_START));
+  const desired = Math.max(MIN_LIT, targetLit);
+
+  // Spawn tiles until we hit the target
+  while (litTiles.size < desired) {
+    spawnTile();
   }
 
-  tileInterval = setTimeout(scheduleTileSpawn, Math.max(interval, 600));
+  // Check interval: starts at 800ms, speeds up to 400ms
+  const interval = 800 - (progress * 400);
+  tileInterval = setTimeout(scheduleTileSpawn, Math.max(interval, 400));
 }
 
 function spawnTile() {
