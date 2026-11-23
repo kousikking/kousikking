@@ -235,8 +235,6 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; 
     <div class="stats-row" style="animation: fadeInUp 0.8s ease-out 0.6s both">
       <div class="stat"><div class="stat-value" id="finalSteps">0</div><div class="stat-label">Correct Steps</div></div>
       <div class="stat-divider"></div>
-      <div class="stat"><div class="stat-value" id="finalAccuracy">0%</div><div class="stat-label">Accuracy</div></div>
-      <div class="stat-divider"></div>
       <div class="stat"><div class="stat-value" id="finalDuration">60s</div><div class="stat-label">Duration</div></div>
     </div>
     <div class="divider" style="animation: fadeInUp 0.8s ease-out 0.75s both"></div>
@@ -550,8 +548,6 @@ function endGame() {
     document.getElementById('finalPlayerName').textContent = playerName;
     document.getElementById('finalScore').textContent = score;
     document.getElementById('finalSteps').textContent = correctSteps;
-    const accuracy = totalAttempts > 0 ? Math.round((correctSteps / totalAttempts) * 100) : 0;
-    document.getElementById('finalAccuracy').textContent = accuracy + '%';
     document.getElementById('finalDuration').textContent = GAME_DURATION + 's';
     showScreen('score-screen');
 
