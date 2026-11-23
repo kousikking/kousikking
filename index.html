@@ -25,6 +25,13 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; 
 .btn:active { transform: scale(0.97); }
 .btn-sm { padding: 20px 64px; font-size: 32px; letter-spacing: 5px; }
 
+/* Nav buttons */
+.nav-btns { position: absolute; top: 40px; left: 50px; z-index: 10; display: flex; gap: 12px; }
+.nav-btn { width: 48px; height: 48px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.nav-btn:hover { border-color: #FFCC00; background: rgba(255,204,0,0.15); }
+.nav-btn:active { transform: scale(0.9); }
+.nav-btn svg { width: 22px; height: 22px; fill: none; stroke: rgba(255,255,255,0.8); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
 /* Edge glows */
 .edge-l { position: absolute; top: 0; left: 0; width: 35%; height: 100%; background: radial-gradient(ellipse at 0% 30%, rgba(212,5,17,0.3) 0%, transparent 60%); pointer-events: none; animation: edgeGlowPulse 4s ease-in-out infinite; }
 .edge-r { position: absolute; top: 0; right: 0; width: 35%; height: 100%; background: radial-gradient(ellipse at 100% 30%, rgba(212,5,17,0.25) 0%, transparent 60%); pointer-events: none; animation: edgeGlowPulse 4s ease-in-out 2s infinite; }
@@ -152,6 +159,9 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; 
   <div class="trail trail-1"></div><div class="trail trail-2"></div>
   <div class="overlay"></div>
   <img class="logo logo-ref" alt="">
+  <div class="nav-btns">
+    <button class="nav-btn" onclick="showScreen('start-screen')" title="Back"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+  </div>
   <div class="content" style="gap: 36px; animation: fadeInUp 0.8s ease-out both">
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
       <h1 style="font-family:'Anton',sans-serif;font-weight:400;font-size:72px;color:#FFF;text-transform:uppercase;letter-spacing:4px;text-shadow:0 2px 40px rgba(0,0,0,0.6)">Register to Play</h1>
@@ -183,6 +193,11 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; 
   <img class="bg bg-ref" alt="">
   <div class="edge-l"></div><div class="edge-r"></div>
   <div class="overlay" style="background:rgba(0,0,0,0.45)"></div>
+
+  <div class="nav-btns">
+    <button class="nav-btn" onclick="stopAndGoBack()" title="Back"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button class="nav-btn" onclick="stopAndGoHome()" title="Home"><svg viewBox="0 0 24 24"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></button>
+  </div>
 
   <div class="hud">
     <div class="hud-box timer">
@@ -220,6 +235,11 @@ html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; 
   <div class="edge-l"></div><div class="edge-r"></div>
   <div class="overlay"></div>
   <img class="logo logo-ref" alt="">
+
+  <div class="nav-btns">
+    <button class="nav-btn" onclick="showScreen('register-screen');clearInterval(autoReturnTimeout)" title="Back"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <button class="nav-btn" onclick="resetGame()" title="Home"><svg viewBox="0 0 24 24"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg></button>
+  </div>
 
   <div class="content" style="gap: 28px">
     <div style="animation: fadeInUp 0.8s ease-out both">
@@ -289,6 +309,24 @@ let litTiles = new Map(); // index → { color, litAt, timeout }
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+}
+
+function stopGame() {
+  gameRunning = false;
+  clearInterval(gameInterval);
+  clearTimeout(tileInterval);
+  litTiles.forEach(({ timeout }) => clearTimeout(timeout));
+  litTiles.clear();
+}
+
+function stopAndGoBack() {
+  stopGame();
+  showScreen('register-screen');
+}
+
+function stopAndGoHome() {
+  stopGame();
+  resetGame();
 }
 
 // ── Registration ──
