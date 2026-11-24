@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using DHL_PressureTiles.Config;
 
 namespace DHL_PressureTiles.ArtNet
@@ -34,6 +35,9 @@ namespace DHL_PressureTiles.ArtNet
         private byte[] dmxUniverse = new byte[512];
         private bool dmxDirty = false;
         private byte sequenceNumber = 1;
+
+        // Regex to parse incoming tile press: <tileId>
+        private static readonly Regex PACKET_ID_PATTERN = new Regex(@"<(\d+)>");
 
         // Thread-safe queue for received tile events
         private readonly Queue<TilePressEvent> receivedEvents = new Queue<TilePressEvent>();
@@ -161,15 +165,28 @@ namespace DHL_PressureTiles.ArtNet
         // ══════════════════════════════════════
 
         /// <summary>
-        /// Set a single tile's color in the DMX universe.
+        /// Set a tile's color by grid index (0-62).
+        /// Looks up the hardware ID from the serpentine mapping, then sets DMX channels.
         /// Changes are batched and sent on next frame.
         /// </summary>
-        public void SetTileColor(int tileIndex, Color color)
+        public void SetTileColor(int gridIndex, Color color)
         {
-            if (tileIndex < 0 || tileIndex >= config.TotalTiles) return;
+            if (gridIndex < 0 || gridIndex >= config.TotalTiles) return;
 
-            int offset = (config.dmxStartAddress - 1) + (tileIndex * config.channelsPerTile);
-            if (offset + 2 >= 512) return;
+            int hardwareId = config.GridIndexToHardwareId(gridIndex);
+            SetTileColorByHardwareId(hardwareId, color);
+        }
+
+        /// <summary>
+        /// Set a tile's color by hardware ID (1-63) directly.
+        /// </summary>
+        public void SetTileColorByHardwareId(int hardwareId, Color color)
+        {
+            if (hardwareId < 1 || hardwareId > 63) return;
+
+            int dmxChannel = config.GetTileDMXChannel(hardwareId);
+            int offset = dmxChannel - 1; // DMX is 1-based, array is 0-based
+            if (offset < 0 || offset + 2 >= 512) return;
 
             dmxUniverse[offset] = (byte)(color.r * 255);
             dmxUniverse[offset + 1] = (byte)(color.g * 255);
@@ -430,7 +447,39 @@ namespace DHL_PressureTiles.ArtNet
         {
             Log($"[RCV] From {senderIP}: {message}");
 
-            // Parse "PRESS:tileIndex" or "RELEASE:tileIndex" or "PRESS:tileIndex:pressure"
+            // PRIMARY FORMAT: <tileId> — from Teensy pressure tiles
+            // The hardware sends the hardware tile ID (1-63) wrapped in angle brackets
+            var match = PACKET_ID_PATTERN.Match(message);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out int hardwareId))
+            {
+                // Convert hardware ID to grid index for the game
+                int gridIndex = config.HardwareIdToGridIndex(hardwareId);
+                if (gridIndex >= 0)
+                {
+                    var evt = new TilePressEvent
+                    {
+                        tileIndex = gridIndex,
+                        hardwareId = hardwareId,
+                        pressed = true,
+                        timestamp = Time.time,
+                        pressure = 1f
+                    };
+
+                    lock (eventLock)
+                    {
+                        receivedEvents.Enqueue(evt);
+                    }
+
+                    Log($"[RCV] Tile press: hardware ID {hardwareId} → grid index {gridIndex}");
+                    return;
+                }
+                else
+                {
+                    Log($"[RCV] Unknown hardware ID: {hardwareId}");
+                }
+            }
+
+            // FALLBACK: "PRESS:tileIndex" or "RELEASE:tileIndex"
             var parts = message.Split(':');
             if (parts.Length >= 2)
             {
@@ -446,6 +495,7 @@ namespace DHL_PressureTiles.ArtNet
                     var evt = new TilePressEvent
                     {
                         tileIndex = tileIndex,
+                        hardwareId = -1,
                         pressed = isPress,
                         timestamp = Time.time,
                         pressure = pressure
@@ -514,9 +564,10 @@ namespace DHL_PressureTiles.ArtNet
     [Serializable]
     public struct TilePressEvent
     {
-        public int tileIndex;
+        public int tileIndex;     // Grid index (0-62, row-major)
+        public int hardwareId;    // Hardware tile ID (1-63, serpentine)
         public bool pressed;
         public float timestamp;
-        public float pressure; // 0-1 normalized
+        public float pressure;    // 0-1 normalized
     }
 }

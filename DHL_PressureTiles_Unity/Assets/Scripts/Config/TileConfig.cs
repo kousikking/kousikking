@@ -12,7 +12,20 @@ namespace DHL_PressureTiles.Config
     {
         [Header("Grid Layout")]
         public int columns = 9;
-        public int rows = 8;
+        public int rows = 7;
+
+        [Header("Hardware Tile ID Mapping")]
+        [Tooltip("Serpentine tile ID map: odd columns top-to-bottom, even columns bottom-to-top")]
+        public static readonly int[,] TILE_IDS = new int[7, 9]
+        {
+            { 57, 56, 43, 42, 29, 28, 15, 14,  1 },
+            { 58, 55, 44, 41, 30, 27, 16, 13,  2 },
+            { 59, 54, 45, 40, 31, 26, 17, 12,  3 },
+            { 60, 53, 46, 39, 32, 25, 18, 11,  4 },
+            { 61, 52, 47, 38, 33, 24, 19, 10,  5 },
+            { 62, 51, 48, 37, 34, 23, 20,  9,  6 },
+            { 63, 50, 49, 36, 35, 22, 21,  8,  7 },
+        };
 
         [Header("ArtNet / UDP Settings")]
         [Tooltip("IP address of the Teensy 4.1 ArtNet node")]
@@ -68,14 +81,47 @@ namespace DHL_PressureTiles.Config
         public int streak10Threshold = 10;
         public float streak10Multiplier = 2.0f;
 
-        public int TotalTiles => columns * rows;
+        public int TotalTiles => columns * rows; // 63
 
         /// <summary>
-        /// Get DMX start channel for a specific tile index (0-based).
+        /// Convert grid position (row, col) to hardware tile ID (1-63).
         /// </summary>
-        public int GetTileDMXChannel(int tileIndex)
+        public int GetHardwareTileId(int row, int col)
         {
-            return dmxStartAddress + (tileIndex * channelsPerTile);
+            if (row < 0 || row >= rows || col < 0 || col >= columns) return -1;
+            return TILE_IDS[row, col];
+        }
+
+        /// <summary>
+        /// Convert hardware tile ID (1-63) to grid index (0-62, row-major).
+        /// Returns -1 if not found.
+        /// </summary>
+        public int HardwareIdToGridIndex(int hardwareId)
+        {
+            for (int r = 0; r < rows; r++)
+                for (int c = 0; c < columns; c++)
+                    if (TILE_IDS[r, c] == hardwareId)
+                        return r * columns + c;
+            return -1;
+        }
+
+        /// <summary>
+        /// Convert grid index (0-62) to hardware tile ID (1-63).
+        /// </summary>
+        public int GridIndexToHardwareId(int gridIndex)
+        {
+            int r = gridIndex / columns;
+            int c = gridIndex % columns;
+            return GetHardwareTileId(r, c);
+        }
+
+        /// <summary>
+        /// Get DMX start channel for a hardware tile ID (1-63).
+        /// Each tile uses 3 channels (RGB).
+        /// </summary>
+        public int GetTileDMXChannel(int hardwareId)
+        {
+            return dmxStartAddress + ((hardwareId - 1) * channelsPerTile);
         }
 
         /// <summary>

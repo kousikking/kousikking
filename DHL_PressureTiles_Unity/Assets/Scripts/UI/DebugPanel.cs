@@ -254,7 +254,7 @@ namespace DHL_PressureTiles.UI
             GUILayout.Space(5);
 
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Tile Index (0-71):", GUILayout.Width(140));
+            GUILayout.Label("Tile Index (0-62):", GUILayout.Width(140));
             int.TryParse(GUILayout.TextField(selectedTile.ToString(), GUILayout.Width(60)), out selectedTile);
             GUILayout.EndHorizontal();
 
@@ -343,7 +343,7 @@ namespace DHL_PressureTiles.UI
         private void DrawTileGridTestTab()
         {
             GUILayout.Label("▸ Click tiles to toggle ON/OFF", headerStyle);
-            GUILayout.Label("Yellow = ON, Dark = OFF. Changes sent to hardware in real time.");
+            GUILayout.Label("Shows hardware ID on each tile. Yellow = ON, Dark = OFF.");
             GUILayout.Space(10);
 
             if (testGridState == null || testGridState.Length != config.TotalTiles)
@@ -358,9 +358,10 @@ namespace DHL_PressureTiles.UI
                 for (int col = 0; col < config.columns; col++)
                 {
                     int idx = row * config.columns + col;
+                    int hwId = config.GridIndexToHardwareId(idx);
                     GUIStyle style = testGridState[idx] ? tileOnStyle : tileOffStyle;
 
-                    if (GUILayout.Button(idx.ToString(), style, GUILayout.Width(tileSize), GUILayout.Height(tileSize)))
+                    if (GUILayout.Button(hwId.ToString(), style, GUILayout.Width(tileSize), GUILayout.Height(tileSize)))
                     {
                         testGridState[idx] = !testGridState[idx];
                         var artNet = ArtNetController.Instance;
